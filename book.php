@@ -4,40 +4,43 @@ require_once('./connection.php');
 
 $id = $_GET['id'];
 
+// Update book data
+if (isset($_POST['action']) && $_POST['action'] == 'Salvesta') {
+    $stmt = $pdo->prepare('UPDATE books SET title = :title, price = :price WHERE id = :id');
+    $stmt->execute(['id' => $id, 'title' => $_POST['title'], 'price' => $_POST['price']]);
+
+    header("Location: ./book.php?id={$id}");
+}
+
+// Remove author from book
+if (isset($_POST['action']) && $_POST['action'] == 'remove_author') {
+    $stmt = $pdo->prepare('DELETE FROM book_authors WHERE book_id = :book_id AND author_id = :author_id');
+    $stmt->execute(['book_id' => $id, 'author_id' => $_POST['author_id']]);
+
+    header("Location: ./book.php?id={$id}");
+}
+
+// Delete book
+if (isset($_POST['action']) && $_POST['action'] == 'delete_book') {
+    // First, remove all authors associated with the book
+    $stmt = $pdo->prepare('DELETE FROM book_authors WHERE book_id = :book_id');
+    $stmt->execute(['book_id' => $id]);
+
+    // Then delete the book itself
+    $stmt = $pdo->prepare('DELETE FROM books WHERE id = :id');
+    $stmt->execute(['id' => $id]);
+
+    header("Location: ./index.php"); // Redirect to the main page after deletion
+}
+
+// Get book data
 $stmt = $pdo->prepare('SELECT * FROM books WHERE id = :id');
 $stmt->execute(['id' => $id]);
 $book = $stmt->fetch();
 
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    if (isset($_POST['new_price'])) {
-        $new_price = floatval($_POST['new_price']);
-        $updateStmt = $pdo->prepare('UPDATE books SET price = :price WHERE id = :id');
-        $updateStmt->execute(['price' => $new_price, 'id' => $id]);
-
-        header("Location: " . $_SERVER['PHP_SELF'] . "?id=" . $id);
-        exit;
-    }
-
-    if (isset($_POST['update_details'])) {
-        $new_pages = intval($_POST['pages']);
-        $new_summary = $_POST['summary'];
-        $new_type = $_POST['type'];
-
-        $updateStmt = $pdo->prepare('UPDATE books SET pages = :pages, summary = :summary, type = :type WHERE id = :id');
-        $updateStmt->execute(['pages' => $new_pages, 'summary' => $new_summary, 'type' => $new_type, 'id' => $id]);
-
-        header("Location: " . $_SERVER['PHP_SELF'] . "?id=" . $id);
-        exit;
-    }
-
-    if (isset($_POST['delete'])) {
-        $deleteStmt = $pdo->prepare('DELETE FROM books WHERE id = :id');
-        $deleteStmt->execute(['id' => $id]);
-
-        header("Location: books.php");
-        exit;
-    }
-}
+// Get book authors
+$stmt = $pdo->prepare('SELECT * FROM book_authors ba LEFT JOIN authors a ON ba.author_id = a.id WHERE ba.book_id = :id');
+$stmt->execute(['id' => $id]);
 
 ?>
 
@@ -46,73 +49,60 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Book Details</title>
-    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <title>Edit Book</title>
+    <script src="https://cdn.tailwindcss.com"></script>
 </head>
-<body class="bg-gray-100 flex items-center justify-center min-h-screen">
+<body class="bg-gray-100">
 
-    <div class="bg-white shadow-lg rounded-lg p-8 max-w-lg w-full">
-        <h1 class="text-3xl font-bold text-gray-800 mb-4 text-center">
-            <?= htmlspecialchars($book['title']); ?>
-        </h1>
-        
-        <?php if (!empty($book['cover_path'])): ?>
-            <div class="mb-6">
-                <img src="<?= htmlspecialchars($book['cover_path']); ?>" alt="Book Cover" class="w-full h-auto rounded-lg">
-            </div>
-        <?php endif; ?>
+<div class="container mx-auto p-6 bg-white shadow-lg rounded-lg mt-10">
+    <h1 class="text-2xl font-semibold text-center mb-6">Book Details: <?= htmlspecialchars($book['title']); ?></h1>
 
-        <div class="space-y-4">
-            <p><span class="font-semibold text-gray-700">Language:</span> <?= htmlspecialchars($book['language']); ?></p>            
-            <p><span class="font-semibold text-gray-700">Release Date:</span> <?= htmlspecialchars($book['release_date']); ?></p>
-            <p><span class="font-semibold text-gray-700">Price:</span> $<?= htmlspecialchars($book['price']); ?></p>
-            <p><span class="font-semibold text-gray-700">Stock Available:</span> <?= htmlspecialchars($book['stock_saldo']); ?></p>
-            <p><span class="font-semibold text-gray-700">Pages:</span> <?= htmlspecialchars($book['pages']); ?></p>
-            <p><span class="font-semibold text-gray-700">Type:</span> <?= htmlspecialchars($book['type']); ?></p>
-            <p><span class="font-semibold text-gray-700">Summary:</span> <?= htmlspecialchars($book['summary']); ?></p>
-        </div>
-        
-        <div class="mt-6">
-            <form method="POST" class="flex items-center space-x-3">
-                <input type="number" name="new_price" step="0.01" placeholder="New Price" required
-                       class="w-full border border-gray-300 rounded-lg p-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
-                <button type="submit" class="bg-blue-600 text-white py-2 px-4 rounded-lg font-semibold hover:bg-blue-700">
-                    Update Price
-                </button>
-            </form>
-        </div>
-
-        <div class="mt-6">
-            <form method="POST" class="space-y-4">
-                <input type="number" name="pages" value="<?= htmlspecialchars($book['pages']); ?>" placeholder="Pages"
-                       class="w-full border border-gray-300 rounded-lg p-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
-
-                <textarea name="summary" placeholder="Summary" required
-                          class="w-full border border-gray-300 rounded-lg p-2 focus:outline-none focus:ring-2 focus:ring-blue-500"><?= htmlspecialchars($book['summary']); ?></textarea>
-
-                <select name="type" required
-                        class="w-full border border-gray-300 rounded-lg p-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
-                    <option value="new" <?= $book['type'] === 'new' ? 'selected' : ''; ?>>New</option>
-                    <option value="discount" <?= $book['type'] === 'discount' ? 'selected' : ''; ?>>Discount</option>
-                    <option value="old" <?= $book['type'] === 'old' ? 'selected' : ''; ?>>Old</option>
-                    <option value="not in stock" <?= $book['type'] === 'not in stock' ? 'selected' : ''; ?>>Not in Stock</option>
-                </select>
-
-                <button type="submit" name="update_details" class="w-full bg-green-600 text-white py-2 rounded-lg font-semibold hover:bg-green-700">
-                    Update Details
-                </button>
-            </form>
-        </div>
-
-        <div class="mt-6">
-            <form method="POST">
-                <input type="hidden" name="delete" value="true">
-                <button type="submit" class="w-full bg-red-600 text-white py-2 rounded-lg font-semibold hover:bg-red-700">
-                    Delete Book
-                </button>
-            </form>
-        </div>
+    <div class="mb-4">
+        <label class="block text-sm font-medium text-gray-700">Title:</label>
+        <p class="text-lg"><?= htmlspecialchars($book['title']); ?></p>
     </div>
+
+    <div class="mb-4">
+        <label class="block text-sm font-medium text-gray-700">Price:</label>
+        <p class="text-lg"><?= htmlspecialchars($book['price']); ?></p>
+    </div>
+
+    <div class="mb-6">
+        <a href="edit.php?id=<?= $id; ?>" class="w-full bg-yellow-500 text-white py-2 rounded-md hover:bg-yellow-600 text-center inline-block">
+            Edit Book
+        </a>
+    </div>
+
+    <div>
+        <h2 class="text-xl font-semibold mb-4">Authors:</h2>
+        <ul class="space-y-4">
+            <?php while ($author = $stmt->fetch()) { ?>
+                <li class="flex justify-between items-center bg-gray-50 p-4 rounded-md shadow-sm">
+                    <span class="text-lg"><?= htmlspecialchars($author['first_name']); ?> <?= htmlspecialchars($author['last_name']); ?></span>
+                    <form action="./book.php?id=<?= $id; ?>" method="post" class="inline">
+                        <input type="hidden" name="author_id" value="<?= $author['id']; ?>">
+                        <button type="submit" name="action" value="remove_author" class="bg-red-500 text-white px-4 py-2 rounded-md hover:bg-red-600 flex items-center">
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16" class="mr-2">
+                                <path d="M 10.806641 2 C 10.289641 2 9.7956875 2.2043125 9.4296875 2.5703125 L 9 3 L 4 3 A 1.0001 1.0001 0 1 0 4 5 L 20 5 A 1.0001 1.0001 0 1 0 20 3 L 15 3 L 14.570312 2.5703125 C 14.205312 2.2043125 13.710359 2 13.193359 2 L 10.806641 2 z M 4.3652344 7 L 5.8925781 20.263672 C 6.0245781 21.253672 6.877 22 7.875 22 L 16.123047 22 C 17.121047 22 17.974422 21.254859 18.107422 20.255859 L 19.634766 7 L 4.3652344 7 z"></path>
+                            </svg>
+                            Remove
+                        </button>
+                    </form>
+                </li>
+            <?php } ?>
+        </ul>
+    </div>
+
+    <!-- Delete Book Button -->
+    <div class="mt-6 text-center">
+        <form action="./book.php?id=<?= $id; ?>" method="post">
+            <input type="hidden" name="action" value="delete_book">
+            <button type="submit" class="bg-red-600 text-white px-6 py-2 rounded-md hover:bg-red-700">
+                Delete Book
+            </button>
+        </form>
+    </div>
+</div>
 
 </body>
 </html>
