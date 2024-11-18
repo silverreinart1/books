@@ -4,20 +4,11 @@ require_once('./connection.php');
 
 // Handle form submission to add a new book
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    // Collect form data
     $title = htmlspecialchars($_POST['title']);
     $price = floatval($_POST['price']);
     $release_date = $_POST['release_date'];
     $type = htmlspecialchars($_POST['type']);  // Optional field for book type
 
-    // Insert the book into the database
-    $stmt = $pdo->prepare('INSERT INTO books (title, price, release_date, type) VALUES (:title, :price, :release_date, :type)');
-    $stmt->execute([
-        ':title' => $title,
-        ':price' => $price,
-        ':release_date' => $release_date,
-        ':type' => $type,
-    ]);
 
     // Redirect to the main book list page after adding
     header('Location: index.php'); 
@@ -63,23 +54,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             <input type="date" name="release_date" id="release_date" required class="w-full mt-1 border border-gray-300 bg-white text-dark rounded-lg p-2 focus:outline-none focus:ring-2 focus:ring-blue-400">
         </div>
 
-        <div>
-            <label for="type" class="block text-muted">Book Type:</label>
-            <select name="type" id="type" class="w-full mt-1 border border-gray-300 bg-white text-dark rounded-lg p-2 focus:outline-none focus:ring-2 focus:ring-blue-400">
-                <option value="new">New</option>
-                <option value="old">Old</option>
-                <option value="discount">Discount</option>
-                <option value="not in stock">Not in Stock</option>
-                <option value="ebook">Ebook</option>
-            </select>
-        </div>
 
         <button type="submit" class="w-full bg-green-500 text-white py-2 rounded-lg hover:bg-green-600 focus:outline-none">Add Book</button>
     </form>
 
-    <!-- Cancel Button Section -->
     <div class="mt-6 text-center">
-        <a href="index.php" class="bg-gray-500 text-white py-2 px-6 rounded-lg hover:bg-gray-600 focus:outline-none">Cancel</a>
+        <a href="index.php" class="bg-red-500 text-white py-2 px-6 rounded-lg hover:bg-red-800 focus:outline-none">🔙Cancel</a>
     </div>
 </div>
 
